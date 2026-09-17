@@ -1,9 +1,9 @@
 import Vapor
 
 public struct XSSProtectionConfiguration: SecurityHeaderConfiguration {
-    public init () {}
+    public init() {}
 
-    func setHeader(on response: Response, from request: Request) {
-        response.headers.replaceOrAdd(name: .xssProtection, value: "0")
+    func setHeader(on response: inout Response, from request: Request) {
+        response.headers[.xssProtection] = "0"
     }
 }

@@ -1,5 +1,6 @@
-import Vapor
 import Foundation
+import Synchronization
+import Vapor
 
 public struct ContentSecurityPolicyConfiguration: SecurityHeaderConfiguration {
     private let value: String
@@ -12,32 +13,38 @@ public struct ContentSecurityPolicyConfiguration: SecurityHeaderConfiguration {
         self.value = value.value
     }
 
-    func setHeader(on response: Response, from request: Request) {
+    func setHeader(on response: inout Response, from request: Request) {
         if let requestCSP = request.contentSecurityPolicy {
-            response.headers.replaceOrAdd(name: .contentSecurityPolicy, value: requestCSP.value)
+            response.headers[.contentSecurityPolicy] = requestCSP.value
         } else {
-            response.headers.replaceOrAdd(name: .contentSecurityPolicy, value: value)
+            response.headers[.contentSecurityPolicy] = value
         }
     }
 }
 
-extension ContentSecurityPolicyConfiguration: StorageKey {
-    public typealias Value = Self
-}
+/// Per-request CSP overrides. Vapor 5 `Request` is a value type with no `StorageKey`,
+/// so overrides are keyed by `Request.id` for the duration of the middleware chain.
+private let contentSecurityPolicyOverrides = Mutex<[String: ContentSecurityPolicyConfiguration]>([:])
 
 extension Request {
-    
+
     public var contentSecurityPolicy: ContentSecurityPolicyConfiguration? {
         get {
-            return self.storage[ContentSecurityPolicyConfiguration.self]
+            contentSecurityPolicyOverrides.withLock { $0[self.id] }
         }
-        set {
-            self.storage[ContentSecurityPolicyConfiguration.self] = newValue
+        nonmutating set {
+            contentSecurityPolicyOverrides.withLock { map in
+                if let newValue {
+                    map[self.id] = newValue
+                } else {
+                    map.removeValue(forKey: self.id)
+                }
+            }
         }
     }
 }
 
-public struct CSPReportTo: Codable {
+public struct CSPReportTo: Codable, Sendable {
     private let group: String?
     private let max_age: Int
     private let endpoints: [CSPReportToEndpoint]
@@ -52,7 +59,7 @@ public struct CSPReportTo: Codable {
     }
 }
 
-public struct CSPReportToEndpoint: Codable {
+public struct CSPReportToEndpoint: Codable, Sendable {
     private let url: String
 
     public init(url: String) {
@@ -75,7 +82,7 @@ extension CSPReportTo: Equatable {
     }
 }
 
-public struct CSPKeywords {
+public struct CSPKeywords: Sendable {
     public static let all = "*"
     public static let none = "'none'"
     public static let `self` = "'self'"
@@ -85,7 +92,7 @@ public struct CSPKeywords {
     public static let unsafeInline = "'unsafe-inline'"
 }
 
-public class ContentSecurityPolicy {
+public final class ContentSecurityPolicy: @unchecked Sendable {
     private var policy: [String] = []
 
     var value: String {
@@ -97,13 +104,13 @@ public class ContentSecurityPolicy {
         policy.append(value)
         return self
     }
-    
+
     @discardableResult
     public func baseUri(sources: String...) -> ContentSecurityPolicy {
         join(sources: sources, to: "base-uri")
         return self
     }
-    
+
     @discardableResult
     public func baseUri(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "base-uri")
@@ -115,13 +122,13 @@ public class ContentSecurityPolicy {
         policy.append("block-all-mixed-content")
         return self
     }
-    
+
     @discardableResult
     public func childSrc(sources: String...) -> ContentSecurityPolicy {
         join(sources: sources, to: "child-src")
         return self
     }
-    
+
     @discardableResult
     public func childSrc(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "child-src")
@@ -133,7 +140,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "connect-src")
         return self
     }
-    
+
     @discardableResult
     public func connectSrc(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "connect-src")
@@ -145,7 +152,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "default-src")
         return self
     }
-    
+
     @discardableResult
     public func defaultSrc(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "default-src")
@@ -157,7 +164,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "font-src")
         return self
     }
-    
+
     @discardableResult
     public func fontSrc(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "font-src")
@@ -169,7 +176,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "form-action")
         return self
     }
-    
+
     @discardableResult
     public func formAction(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "form-action")
@@ -181,7 +188,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "frame-ancestors")
         return self
     }
-    
+
     @discardableResult
     public func frameAncestors(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "frame-ancestors")
@@ -193,7 +200,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "frame-src")
         return self
     }
-    
+
     @discardableResult
     public func frameSrc(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "frame-src")
@@ -205,7 +212,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "img-src")
         return self
     }
-    
+
     @discardableResult
     public func imgSrc(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "img-src")
@@ -217,7 +224,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "manifest-src")
         return self
     }
-    
+
     @discardableResult
     public func manifestSrc(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "manifest-src")
@@ -229,7 +236,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "media-src")
         return self
     }
-    
+
     @discardableResult
     public func mediaSrc(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "media-src")
@@ -241,7 +248,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "object-src")
         return self
     }
-    
+
     @discardableResult
     public func objectSrc(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "object-src")
@@ -253,7 +260,7 @@ public class ContentSecurityPolicy {
         join(sources: types, to: "plugin-types")
         return self
     }
-    
+
     @discardableResult
     public func pluginTypes(types: [String]) -> ContentSecurityPolicy {
         join(sources: types, to: "plugin-types")
@@ -265,7 +272,7 @@ public class ContentSecurityPolicy {
         join(sources: values, to: "require-sri-for")
         return self
     }
-    
+
     @discardableResult
     public func requireSriFor(values: [String]) -> ContentSecurityPolicy {
         join(sources: values, to: "require-sri-for")
@@ -292,7 +299,7 @@ public class ContentSecurityPolicy {
         join(sources: values, to: "sandbox")
         return self
     }
-    
+
     @discardableResult
     public func sandbox(values: [String]) -> ContentSecurityPolicy {
         join(sources: values, to: "sandbox")
@@ -304,7 +311,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "script-src")
         return self
     }
-    
+
     @discardableResult
     public func scriptSrc(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "script-src")
@@ -316,7 +323,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "style-src")
         return self
     }
-    
+
     @discardableResult
     public func styleSrc(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "style-src")
@@ -334,7 +341,7 @@ public class ContentSecurityPolicy {
         join(sources: sources, to: "worker-src")
         return self
     }
-    
+
     @discardableResult
     public func workerSrc(sources: [String]) -> ContentSecurityPolicy {
         join(sources: sources, to: "worker-src")
@@ -344,6 +351,6 @@ public class ContentSecurityPolicy {
     private func join(sources: [String], to directive: String) {
         policy.append("\(directive) \(sources.joined(separator: " "))")
     }
-    
+
     public init() {}
 }

@@ -7,7 +7,7 @@ public struct ServerConfiguration: SecurityHeaderConfiguration {
         self.value = value
     }
 
-    func setHeader(on response: Response, from request: Request) {
-        response.headers.replaceOrAdd(name: .server, value: value)
+    func setHeader(on response: inout Response, from request: Request) {
+        response.headers[.server] = value
     }
 }

@@ -1,6 +1,6 @@
 import Vapor
 
-public class SecurityHeadersFactory {
+public final class SecurityHeadersFactory: @unchecked Sendable {
     var contentTypeOptions = ContentTypeOptionsConfiguration(option: .nosniff)
     var contentSecurityPolicy = ContentSecurityPolicyConfiguration(value: ContentSecurityPolicy().defaultSrc(sources: CSPKeywords.`self`))
     var frameOptions = FrameOptionsConfiguration(option: .deny)

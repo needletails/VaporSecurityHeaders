@@ -1,8 +1,8 @@
 import Vapor
 
-public struct SecurityHeaders {
+public struct SecurityHeaders: Sendable {
 
-    var configurations: [SecurityHeaderConfiguration]
+    var configurations: [any SecurityHeaderConfiguration]
 
     init(contentTypeConfiguration: ContentTypeOptionsConfiguration = ContentTypeOptionsConfiguration(option: .nosniff),
          contentSecurityPolicyConfiguration: ContentSecurityPolicyConfiguration = ContentSecurityPolicyConfiguration(value: ContentSecurityPolicy().defaultSrc(sources: CSPKeywords.`self`)),
@@ -17,7 +17,7 @@ public struct SecurityHeaders {
         if let xssProtectionConfiguration {
             configurations.append(xssProtectionConfiguration)
         }
-        
+
         if let hstsConfiguration = hstsConfiguration {
             configurations.append(hstsConfiguration)
         }
@@ -38,13 +38,14 @@ public struct SecurityHeaders {
 }
 
 extension SecurityHeaders: Middleware {
-    
-    public func respond(to request: Request, chainingTo next: Responder) -> EventLoopFuture<Response> {
-        next.respond(to: request).map { response in
-            for spec in self.configurations {
-                spec.setHeader(on: response, from: request)
-            }
-            return response
+
+    public func respond(to request: Request, chainingTo next: any Responder) async throws -> Response {
+        var response = try await next.respond(to: request)
+        for spec in configurations {
+            spec.setHeader(on: &response, from: request)
         }
+        // Drop per-request CSP override after headers are applied.
+        request.contentSecurityPolicy = nil
+        return response
     }
 }

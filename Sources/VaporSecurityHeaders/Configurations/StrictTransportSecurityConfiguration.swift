@@ -12,7 +12,7 @@ public struct StrictTransportSecurityConfiguration: SecurityHeaderConfiguration 
         self.preload = preload
     }
 
-    func setHeader(on response: Response, from request: Request) {
+    func setHeader(on response: inout Response, from request: Request) {
         var headerValue = "max-age=\(maxAge);"
         if includeSubdomains {
             headerValue += " includeSubDomains;"
@@ -21,6 +21,6 @@ public struct StrictTransportSecurityConfiguration: SecurityHeaderConfiguration 
             headerValue += " preload"
         }
 
-        response.headers.replaceOrAdd(name: .strictTransportSecurity, value: headerValue)
+        response.headers[.strictTransportSecurity] = headerValue
     }
 }

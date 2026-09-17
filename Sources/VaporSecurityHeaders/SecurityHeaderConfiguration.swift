@@ -1,5 +1,5 @@
 import Vapor
 
-protocol SecurityHeaderConfiguration {
-    func setHeader(on response: Response, from request: Request)
+protocol SecurityHeaderConfiguration: Sendable {
+    func setHeader(on response: inout Response, from request: Request)
 }

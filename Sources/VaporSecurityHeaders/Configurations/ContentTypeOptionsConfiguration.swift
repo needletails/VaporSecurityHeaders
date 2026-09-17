@@ -8,16 +8,16 @@ public struct ContentTypeOptionsConfiguration: SecurityHeaderConfiguration {
         self.option = option
     }
 
-    public enum Options {
+    public enum Options: Sendable {
         case nosniff
         case none
     }
 
-    func setHeader(on response: Response, from request: Request) {
+    func setHeader(on response: inout Response, from request: Request) {
         switch option {
         case .nosniff:
-            response.headers.replaceOrAdd(name: .xContentTypeOptions, value: "nosniff")
-        default:
+            response.headers[.xContentTypeOptions] = "nosniff"
+        case .none:
             break
         }
     }

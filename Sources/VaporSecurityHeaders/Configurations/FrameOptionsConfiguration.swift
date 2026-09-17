@@ -2,7 +2,7 @@ import Vapor
 
 public struct FrameOptionsConfiguration: SecurityHeaderConfiguration {
 
-    public enum Options {
+    public enum Options: Sendable {
         case deny
         case sameOrigin
         case allow(from: String)
@@ -14,14 +14,14 @@ public struct FrameOptionsConfiguration: SecurityHeaderConfiguration {
         self.option = option
     }
 
-    func setHeader(on response: Response, from request: Request) {
+    func setHeader(on response: inout Response, from request: Request) {
         switch option {
         case .deny:
-            response.headers.replaceOrAdd(name: .xFrameOptions, value: "DENY")
+            response.headers[.xFrameOptions] = "DENY"
         case .sameOrigin:
-            response.headers.replaceOrAdd(name: .xFrameOptions, value: "SAMEORIGIN")
+            response.headers[.xFrameOptions] = "SAMEORIGIN"
         case .allow(let from):
-            response.headers.replaceOrAdd(name: .xFrameOptions, value: "ALLOW-FROM \(from)")
+            response.headers[.xFrameOptions] = "ALLOW-FROM \(from)"
         }
     }
 }

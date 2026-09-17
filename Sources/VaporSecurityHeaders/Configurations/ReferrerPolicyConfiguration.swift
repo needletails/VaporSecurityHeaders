@@ -2,7 +2,7 @@ import Vapor
 
 public struct ReferrerPolicyConfiguration: SecurityHeaderConfiguration {
 
-    public enum Directive: String {
+    public enum Directive: String, Sendable {
         case empty = ""
         case noReferrer = "no-referrer"
         case noReferrerWhenDowngrade = "no-referrer-when-downgrade"
@@ -24,7 +24,7 @@ public struct ReferrerPolicyConfiguration: SecurityHeaderConfiguration {
         self.directives = directives
     }
 
-    func setHeader(on response: Response, from request: Request) {
-        response.headers.replaceOrAdd(name: .referrerPolicy, value: directives.map({ $0.rawValue }).joined(separator: ", "))
+    func setHeader(on response: inout Response, from request: Request) {
+        response.headers[.referrerPolicy] = directives.map(\.rawValue).joined(separator: ", ")
     }
 }
