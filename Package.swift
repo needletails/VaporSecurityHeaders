@@ -11,7 +11,7 @@ let package = Package(
         .library(name: "VaporSecurityHeaders", targets: ["VaporSecurityHeaders"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/vapor/vapor.git", exact: "5.0.0-beta.3")
+        .package(url: "https://github.com/vapor/vapor.git", exact: "5.0.0-beta.4")
     ],
     targets: [
         .target(name: "VaporSecurityHeaders", dependencies: [
